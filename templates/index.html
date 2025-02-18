@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>POLYMeter - DXF Node & Branch Processor</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1, h2 { text-align: center; }
+        .form-group { margin-bottom: 20px; }
+        .btn { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        .btn:hover { background-color: #45a049; }
+        .results { margin-top: 30px; }
+        img { max-width: 100%; height: auto; margin-bottom: 20px; border: 1px solid #ccc; }
+        a { display: block; margin-bottom: 10px; color: #1a73e8; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .error { color: red; }
+        .instructions { background-color: #f0f8ff; padding: 15px; border-radius: 5px; margin-bottom: 30px; }
+
+        /* Spinner styles */
+        .loading-spinner {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0%   { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-message {
+            display: flex;
+            align-items: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>POLYMeter - DXF Node & Branch Processor</h1>
+        <div class="instructions">
+            <h2>About POLYMeter</h2>
+            <p>POLYMeter processes DXF files to identify polyline networks, add nodes to intersections, and generate a CSV with node-to-branch connections and their lengths. It also outputs a DXF with nodes labeled and a visual JPG preview.</p>
+            <h3>How to Use POLYMeter:</h3>
+            <ol>
+                <li>Upload a DXF file using the form below.</li>
+                <li>Click "Process File" to analyze the network.</li>
+                <li>Wait for processing to finish.</li>
+                <li>Download the results from the provided links:</li>
+                <ul>
+                    <li><strong>CSV File:</strong> Lists nodes, branches, and lengths.</li>
+                    <li><strong>JPG Preview:</strong> Displays a visual of the network.</li>
+                    <li><strong>Processed DXF:</strong> Shows node labels and polyline connections.</li>
+                </ul>
+            </ol>
+        </div>
+
+        <form id="uploadForm">
+            <div class="form-group">
+                <input type="file" id="dxfFile" name="dxfFile" accept=".dxf" required>
+            </div>
+            <button type="submit" class="btn">Process File</button>
+        </form>
+
+        <!-- Loading message/spinner -->
+        <div id="loading" class="loading-message" style="display:none;">
+            <div class="loading-spinner"></div>
+            <div>Processing your DXF file, please wait...</div>
+        </div>
+
+        <div id="results" class="results"></div>
+        <div id="error" class="error"></div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const formData = new FormData();
+            formData.append('dxfFile', document.getElementById('dxfFile').files[0]);
+
+            // Show loading spinner/message
+            const loadingDiv = document.getElementById('loading');
+            loadingDiv.style.display = 'flex';
+
+            try {
+                const response = await fetch('/process-dxf', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                // Attempt to parse JSON
+                let data;
+                try {
+                    data = await response.json();
+                } catch (err) {
+                    throw new Error('Server returned invalid JSON or non-JSON response.');
+                }
+
+                const resultsDiv = document.getElementById('results');
+                const errorDiv = document.getElementById('error');
+                resultsDiv.innerHTML = '';
+                errorDiv.textContent = '';
+
+                if (response.ok) {
+                    resultsDiv.innerHTML = `
+                        <h3>DXF Preview:</h3>
+                        <img src="${data.jpg_url}" alt="DXF Preview">
+                        <h3>Download Results:</h3>
+                        <a href="${data.csv_url}" target="_blank">Download CSV (Nodes & Branches)</a>
+                        <a href="${data.dxf_url}" target="_blank">Download Processed DXF</a>
+                    `;
+                } else {
+                    errorDiv.textContent = data.error || 'An error occurred while processing the file.';
+                }
+            } catch (error) {
+                document.getElementById('error').textContent = 'Error uploading file: ' + error.message;
+            } finally {
+                // Hide loading spinner regardless of success/failure
+                loadingDiv.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
